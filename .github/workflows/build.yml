@@ -2,8 +2,8 @@ name: Build and Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -19,7 +19,7 @@ jobs:
             apk_build: true
           - os: macos-latest
             output_path: build/macos/Build/Products/Release/qubase_mcp.app
-            asset_name: qubase_mcp-macos-x64.dmg
+            asset_name: qubase_mcp-macos-x64.dmgman
             build_target: macos
             apk_build: false
           - os: windows-latest

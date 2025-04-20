@@ -146,6 +146,16 @@ class ChatSetting {
       presencePenalty: json['presencePenalty'] as double? ?? 0.0,
     );
   }
+
+  llm_model.ModelSetting toModelSetting() {
+    return llm_model.ModelSetting(
+      temperature: temperature,
+      maxTokens: maxTokens,
+      topP: topP,
+      frequencyPenalty: frequencyPenalty,
+      presencePenalty: presencePenalty,
+    );
+  }
 }
 
 final List<KeysSetting> defaultApiSettings = [
@@ -165,6 +175,15 @@ final List<KeysSetting> defaultApiSettings = [
     providerId: 'claude',
     providerName: 'Claude',
     icon: 'claude',
+    custom: false,
+  ),
+  KeysSetting(
+    apiKey: '',
+    apiEndpoint: '',
+    apiStyle: 'gemini',
+    providerId: 'gemini',
+    providerName: 'Gemini',
+    icon: 'gemini',
     custom: false,
   ),
   KeysSetting(

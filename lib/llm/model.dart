@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:qubase_mcp/provider/settings_provider.dart';
 import 'package:uuid/uuid.dart';
 import 'package:qubase_mcp/dao/chat_message.dart';
 
@@ -68,7 +67,7 @@ class ChatMessage {
 
   ChatMessage({
     required this.role,
-    this.content,
+    String? content,
     this.name,
     this.mcpServerName,
     this.toolCallId,
@@ -79,7 +78,11 @@ class ChatMessage {
     String? messageId,
     String? parentMessageId,
   })  : messageId = messageId ?? Uuid().v4(),
-        parentMessageId = parentMessageId ?? '';
+        parentMessageId = parentMessageId ?? '',
+        content = content,
+        // Add validation for user and assistant messages
+        assert((role == MessageRole.user || role == MessageRole.assistant) && 
+            (content == null || content.trim().isEmpty) == false, 'Content is required for user and assistant messages');
 
   Map<String, dynamic> toJson() {
     final json = <String, dynamic>{
@@ -271,16 +274,30 @@ class Model {
 class CompletionRequest {
   final String model;
   final List<ChatMessage> messages;
+  final ModelSetting? modelSetting;
   final List<Map<String, dynamic>>? tools;
-  final bool stream;
-  ChatSetting? modelSetting;
 
   CompletionRequest({
     required this.model,
     required this.messages,
-    this.tools,
-    this.stream = false,
     this.modelSetting,
+    this.tools,
+  });
+}
+
+class ModelSetting {
+  final double temperature;
+  final double topP;
+  final double frequencyPenalty;
+  final double presencePenalty;
+  final int? maxTokens;
+
+  ModelSetting({
+    this.temperature = 0.7,
+    this.topP = 1.0,
+    this.frequencyPenalty = 0.0,
+    this.presencePenalty = 0.0,
+    this.maxTokens,
   });
 }
 

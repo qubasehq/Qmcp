@@ -3,12 +3,13 @@ import 'claude_client.dart';
 import 'deepseek_client.dart';
 import 'base_llm_client.dart';
 import 'ollama_client.dart';
+import 'gemini_client.dart';
 import 'package:qubase_mcp/provider/provider_manager.dart';
 import 'package:qubase_mcp/provider/settings_provider.dart';
 import 'package:logging/logging.dart';
 import 'model.dart' as llm_model;
 
-enum LLMProvider { openai, claude, ollama, deepseek }
+enum LLMProvider { openai, claude, ollama, deepseek, gemini }
 
 class LLMFactory {
   static BaseLLMClient create(LLMProvider provider,
@@ -22,6 +23,8 @@ class LLMFactory {
         return DeepSeekClient(apiKey: apiKey, baseUrl: baseUrl);
       case LLMProvider.ollama:
         return OllamaClient(baseUrl: baseUrl);
+      case LLMProvider.gemini:
+        return GeminiClient(apiKey: apiKey, baseUrl: baseUrl);
     }
   }
 }
@@ -38,6 +41,7 @@ class LLMFactoryHelper {
     "claude": LLMProvider.claude,
     "deepseek": LLMProvider.deepseek,
     "ollama": LLMProvider.ollama,
+    "gemini": LLMProvider.gemini,
   };
 
   static BaseLLMClient createFromModel(llm_model.Model currentModel) {
@@ -45,23 +49,21 @@ class LLMFactoryHelper {
       final setting = ProviderManager.settingsProvider.apiSettings.firstWhere(
           (element) => element.providerId == currentModel.providerId);
 
-      // 获取配置信息
       final apiKey = setting.apiKey;
       final baseUrl = setting.apiEndpoint;
 
       Logger.root.fine(
           'Using API Key: ${apiKey.isEmpty ? 'empty' : apiKey.substring(0, 10)}***** for provider: ${currentModel.providerId} model: $currentModel');
 
-      // 创建 LLM 客户端
       return LLMFactory.create(
           LLMFactoryHelper.providerMap[currentModel.providerId] ??
               (throw ArgumentError("Unknown provider: $currentModel")),
           apiKey: apiKey,
           baseUrl: baseUrl);
     } catch (e) {
-      // 如果找不到匹配的提供商，使用默认的OpenAI
+      // If no matching provider is found, use default OpenAI configuration
       Logger.root
-          .warning('未找到匹配的提供商配置: ${currentModel.providerId}，使用默认OpenAI配置');
+          .warning('No matching provider configuration found for: ${currentModel.providerId}, using default OpenAI configuration');
 
       var openAISetting = ProviderManager.settingsProvider.apiSettings
           .firstWhere((element) => element.providerId == "openai",

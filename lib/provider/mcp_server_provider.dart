@@ -266,7 +266,7 @@ class McpServerProvider extends ChangeNotifier {
   }
 
   String mcpServerMarket =
-      "https://raw.githubusercontent.com/daodao97/qubase_mcp/refs/heads/main/assets/mcp_server_market.json";
+      "https://raw.githubusercontent.com/qubasehq/Qmcp/refs/heads/main/assets/mcp_server_market.json";
 
   Future<Map<String, dynamic>> loadMarketServers() async {
     try {

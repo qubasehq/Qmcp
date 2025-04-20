@@ -82,6 +82,7 @@ dependencies:
   flutter_popup: ^3.3.4
   flutter_form_builder: ^10.0.1
   form_builder_validators: ^11.1.2
+  google_generative_ai: ^0.4.7
 
 dev_dependencies:
   flutter_test:

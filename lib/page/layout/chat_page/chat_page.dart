@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:qubase_mcp/llm/model.dart';
 import 'package:qubase_mcp/llm/llm_factory.dart';
 import 'package:qubase_mcp/llm/base_llm_client.dart';
-import 'package:flutter/rendering.dart';
 import 'package:logging/logging.dart';
 import 'package:file_picker/file_picker.dart';
 import 'input_area.dart';
@@ -757,7 +756,7 @@ class _ChatPageState extends State<ChatPage> {
             !m.content!.startsWith('<function') ||
             !m.content!.startsWith('<call_function_result')),
       ],
-      modelSetting: modelSetting,
+      modelSetting: modelSetting?.toModelSetting(),
     ));
 
     _initializeAssistantResponse();

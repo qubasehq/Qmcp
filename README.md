@@ -27,6 +27,48 @@ Qubase MCP is a sophisticated chat interface that revolutionizes AI interactions
 - 🔮 DeepSeek
 - 📚 Custom Model Support
 
+### Local LLM Setup with Ollama
+#### Android Setup
+1. **Install Termux**:
+   - Download Termux ARM64 V8 from [Termux GitHub](https://github.com/termux/termux-app/releases)
+   - Install and open Termux
+   - Run `termux-setup-storage` to grant storage permissions
+   - Run `termux-change-repo` to select package mirror
+   - Update with `pkg upgrade`
+
+2. **Install Required Packages**:
+   ```bash
+   # Install Tur repository
+   pkg install tur-repo
+   
+   # Install Ollama and Zellij
+   pkg install ollama
+   pkg install zellij
+   ```
+
+3. **Configure Android Settings**:
+   - Enable Developer Options: Settings > About device > Tap "Build number" 7 times
+   - In Developer options, enable "Disable child process restrictions"
+
+4. **Running Local Models**:
+   ```bash
+   # Start Ollama server
+   ollama serve
+   
+   # In a new terminal, run models:
+   ollama run deepseek-r1.5b  # For DeepSeek
+   ollama run llama3.2        # For Llama3
+   ```
+
+5. **Useful Commands**:
+   - Stop output: `CTRL + C`
+   - Exit model: `CTRL + D`
+   - Clear screen: `CTRL + L`
+   - Stop server: Find PID with `ps aux | grep ollama`, then `kill [PID]`
+
+#### Desktop Setup
+Coming soon...
+
 ### Smart Features
 - 🧠 Intelligent Context Management
 - 🔄 Real-time Streaming with SSE
@@ -94,7 +136,7 @@ Qubase MCP is a sophisticated chat interface that revolutionizes AI interactions
    flutter pub get
    ```
 
-2. **Launch Application**:
+2. **Launch Application**:upd
    ```bash
    # For desktop platforms
    flutter run -d <platform>  # macos, windows, linux

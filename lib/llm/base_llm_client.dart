@@ -1,7 +1,6 @@
 import 'model.dart';
 import 'utils.dart';
-import 'package:dio/dio.dart';
-import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 abstract class BaseLLMClient {
   Future<LLMResponse> chatCompletion(CompletionRequest request);
@@ -50,19 +49,27 @@ abstract class BaseLLMClient {
 
   Future<LLMException> handleError(
       dynamic e, String name, String endpoint, String bodyStr) async {
-    if (e is DioException && e.response != null) {
-      // Get response content
-      var responseData = e.response?.data;
-      if (responseData is ResponseBody) {
-        responseData = await utf8.decodeStream(responseData.stream);
-      }
+    if (e is http.ClientException) {
+      return LLMException(
+        name: name,
+        endpoint: endpoint,
+        requestBody: bodyStr,
+        originalError: e,
+      );
+    } else if (e is Exception && e.toString().contains('HTTP')) {
+      // Handle HTTP errors (like "HTTP 400: Bad Request")
+      final errorMsg = e.toString();
+      final statusCodeMatch = RegExp(r'HTTP (\d+)').firstMatch(errorMsg);
+      final statusCode = statusCodeMatch != null
+          ? int.tryParse(statusCodeMatch.group(1) ?? '')
+          : null;
 
       return LLMException(
         name: name,
         endpoint: endpoint,
         requestBody: bodyStr,
-        statusCode: e.response?.statusCode,
-        responseData: responseData,
+        statusCode: statusCode,
+        responseData: errorMsg,
         originalError: e,
       );
     } else {

@@ -2,12 +2,11 @@ import 'package:flutter/material.dart';
 
 class AppColors {
   static const Color white = Colors.white;
-  static const MaterialColor grey = Colors.grey;
   static const Color black = Colors.black;
   static const MaterialColor green = Colors.green;
-  static const MaterialColor red = Colors.red;
-  static const MaterialColor blue = Colors.blue;
+  static const MaterialColor primary = Colors.green;
   static const Color transparent = Colors.transparent;
+  static const Color red = Colors.red;
 
   /// Returns the corresponding color based on the theme
   static Color getThemeColor(BuildContext context,
@@ -22,250 +21,305 @@ class AppColors {
   static Color getThemeBackgroundColor(BuildContext context) {
     return getThemeColor(
       context,
-      lightColor: grey[200],
-      darkColor: grey[800],
+      lightColor: white,
+      darkColor: const Color(0xFF121212),
     );
   }
 
   static Color getThemeTextColor(BuildContext context) {
     return getThemeColor(
       context,
-      lightColor: Colors.black87,
-      darkColor: Colors.white,
+      lightColor: black,
+      darkColor: white,
     );
   }
 
   static Color getLayoutBackgroundColor(BuildContext context) {
     return getThemeColor(
       context,
-      lightColor: Colors.white,
-      darkColor: Colors.black26,
+      lightColor: white,
+      darkColor: const Color(0xFF1E1E1E),
     );
   }
 
   static Color getSidebarBackgroundColor(BuildContext context) {
     return getThemeColor(
       context,
-      lightColor: Colors.grey[200],
-      darkColor: Colors.white12,
+      lightColor: white,
+      darkColor: black,
     );
   }
 
   static Color getSidebarActiveConversationColor(BuildContext context) {
     return getThemeColor(
       context,
-      lightColor: AppColors.grey[300],
-      darkColor: AppColors.grey[700],
+      lightColor: green[50],
+      darkColor: green[900],
     );
   }
 
   static Color getToolbarBackgroundColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[100], darkColor: AppColors.grey[900]);
+    return getThemeColor(
+      context,
+      lightColor: white,
+      darkColor: black,
+    );
   }
 
   static Color getTextButtonColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.blue[300], darkColor: AppColors.blue[100]);
+    return getThemeColor(
+      context,
+      lightColor: green[600],
+      darkColor: green[300],
+    );
   }
 
   static Color getCodeTabActiveColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.blue[300], darkColor: AppColors.blue[300]);
+    return getThemeColor(
+      context,
+      lightColor: green[600],
+      darkColor: green[300],
+    );
   }
 
   static Color getCodeTabInactiveColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.blue[100], darkColor: AppColors.blue[100]);
+    return getThemeColor(
+      context,
+      lightColor: green[100],
+      darkColor: green[900],
+    );
   }
 
   static Color getCodePreviewBorderColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[200], darkColor: AppColors.grey[800]);
+    return getThemeColor(
+      context,
+      lightColor: green[100],
+      darkColor: green[900],
+    );
   }
 
   static Color getCodeLanguageTextColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[600], darkColor: AppColors.grey[300]);
+    return getThemeColor(
+      context,
+      lightColor: black,
+      darkColor: white,
+    );
   }
 
   static Color getInactiveTextColor(BuildContext context) {
-    return AppColors.grey[600]!;
+    return getThemeColor(
+      context,
+      lightColor: black.withOpacity(0.6),
+      darkColor: white.withOpacity(0.6),
+    );
   }
 
   static Color getMessageBranchDisabledColor() {
-    return AppColors.grey[400]!;
+    return black.withOpacity(0.4);
   }
 
   static Color getMessageBranchIndicatorTextColor() {
-    return AppColors.grey[600]!;
+    return black.withOpacity(0.6);
   }
 
-  // File attachment related colors
   static Color getFileAttachmentBackgroundColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[200], darkColor: AppColors.grey[800]);
+    return getThemeColor(
+      context,
+      lightColor: green[50],
+      darkColor: green[900],
+    );
   }
 
-  // Image error icon color
   static Color getImageErrorIconColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[600], darkColor: AppColors.grey[400]);
+    return getThemeColor(
+      context,
+      lightColor: black.withOpacity(0.6),
+      darkColor: white.withOpacity(0.6),
+    );
   }
 
-  // Message bubble background color
   static Color getMessageBubbleBackgroundColor(
       BuildContext context, bool isUserMessage) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[100], darkColor: AppColors.grey[800]);
+    return getThemeColor(
+      context,
+      lightColor: isUserMessage ? green[50] : white,
+      darkColor: isUserMessage ? green[900] : black,
+    );
   }
 
-  // Tool call and result text color
   static Color getToolCallTextColor() {
-    return AppColors.grey[600]!;
+    return black.withOpacity(0.7);
   }
 
-  // Chat avatar background color
   static Color getChatAvatarBackgroundColor() {
-    return AppColors.grey;
+    return green[700]!;
   }
 
-  // Chat avatar icon color
   static Color getChatAvatarIconColor() {
-    return AppColors.white;
+    return white;
   }
 
-  // Welcome message text color
   static Color getWelcomeMessageColor() {
-    return AppColors.grey;
+    return black.withOpacity(0.7);
   }
 
-  // Error prompt icon color
   static Color getErrorIconColor() {
-    return AppColors.red;
+    return red;
   }
 
-  // Error prompt text color
   static Color getErrorTextColor() {
-    return AppColors.red;
+    return red;
   }
 
-  // Bottom menu slider color
   static Color getBottomSheetHandleColor(BuildContext context) {
-    return AppColors.grey.withOpacity(0.3);
+    return getThemeColor(
+      context,
+      lightColor: black.withOpacity(0.3),
+      darkColor: white.withOpacity(0.3),
+    );
   }
 
-  // Toolbar bottom border color
   static Color getToolbarBottomBorderColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[200], darkColor: AppColors.grey[800]);
+    return getThemeColor(
+      context,
+      lightColor: black.withOpacity(0.1),
+      darkColor: white.withOpacity(0.1),
+    );
   }
 
-  // Sidebar toggle button icon color
   static Color getSidebarToggleIconColor() {
-    return AppColors.grey[700]!;
+    return black.withOpacity(0.7);
   }
 
-  // Markdown related colors
-
-  // artifact component background color
   static Color getArtifactBackgroundColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: Colors.grey[50], darkColor: Colors.grey[800]);
+    return getThemeColor(
+      context,
+      lightColor: white,
+      darkColor: black,
+    );
   }
 
-  // artifact component border color
   static Color getArtifactBorderColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: Colors.grey[300], darkColor: Colors.grey[700]);
+    return getThemeColor(
+      context,
+      lightColor: green[100],
+      darkColor: green[900],
+    );
   }
 
-  // Progress indicator color
   static Color getProgressIndicatorColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: Colors.orange, darkColor: Colors.orange);
+    return getThemeColor(
+      context,
+      lightColor: green[600],
+      darkColor: green[300],
+    );
   }
 
-  // Think component background color
   static Color getThinkBackgroundColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[300], darkColor: AppColors.grey[700]);
+    return getThemeColor(
+      context,
+      lightColor: white,
+      darkColor: black,
+    );
   }
 
-  // Think component border color
   static Color getThinkBorderColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[200], darkColor: AppColors.grey[700]);
+    return getThemeColor(
+      context,
+      lightColor: green[100],
+      darkColor: green[900],
+    );
   }
 
-  // Think icon color
   static Color getThinkIconColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: Colors.orange, darkColor: Colors.orange);
+    return getThemeColor(
+      context,
+      lightColor: green[600],
+      darkColor: green[300],
+    );
   }
 
-  // Think text color
   static Color getThinkTextColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[500], darkColor: AppColors.grey[300]);
+    return getThemeColor(
+      context,
+      lightColor: black.withOpacity(0.6),
+      darkColor: white.withOpacity(0.6),
+    );
   }
 
-  // Expand/collapse icon color
   static Color getExpandIconColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[600], darkColor: AppColors.grey[300]);
+    return getThemeColor(
+      context,
+      lightColor: black.withOpacity(0.6),
+      darkColor: white.withOpacity(0.6),
+    );
   }
 
-  // Function component background color
   static Color getFunctionBackgroundColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[100], darkColor: AppColors.grey[900]);
+    return getThemeColor(
+      context,
+      lightColor: white,
+      darkColor: black,
+    );
   }
 
-  // Function component border color
   static Color getFunctionBorderColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[300], darkColor: AppColors.grey[700]);
+    return getThemeColor(
+      context,
+      lightColor: green[100],
+      darkColor: green[900],
+    );
   }
 
-  // Function icon color
   static Color getFunctionIconColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: Colors.orange[200], darkColor: Colors.orange[300]);
+    return getThemeColor(
+      context,
+      lightColor: green[600],
+      darkColor: green[300],
+    );
   }
 
-  // Function text color
   static Color getFunctionTextColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[500], darkColor: AppColors.grey[300]);
+    return getThemeColor(
+      context,
+      lightColor: black.withOpacity(0.6),
+      darkColor: white.withOpacity(0.6),
+    );
   }
 
-  // Run button color
   static Color getPlayButtonColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: Colors.green, darkColor: Colors.green[300]);
+    return getThemeColor(
+      context,
+      lightColor: green[600],
+      darkColor: green[300],
+    );
   }
 
-  // Code block toolbar background color
   static Color getCodeBlockToolbarBackgroundColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[300], darkColor: AppColors.grey[900]);
+    return getThemeColor(
+      context,
+      lightColor: white,
+      darkColor: black,
+    );
   }
 
-  // Code block language text color
   static Color getCodeBlockLanguageTextColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[700], darkColor: AppColors.grey[300]);
+    return getThemeColor(
+      context,
+      lightColor: black.withOpacity(0.7),
+      darkColor: white.withOpacity(0.7),
+    );
   }
 
-  // Code preview button background color
   static Color getCodePreviewButtonBackgroundColor(BuildContext context) {
-    return getThemeColor(context,
-        lightColor: AppColors.grey[100], darkColor: AppColors.grey[900]);
+    return getThemeColor(
+      context,
+      lightColor: white,
+      darkColor: black,
+    );
   }
 
-  // Link color
   static Color getLinkColor() {
-    return Colors.blue;
+    return green[600]!;
   }
 }

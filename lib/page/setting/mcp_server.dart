@@ -87,7 +87,7 @@ class _McpServerState extends State<McpServer> {
                       const Spacer(),
                       _buildActionButton(
                         icon: CupertinoIcons.add,
-                        tooltip: l10n.addServer,
+                        tooltip: l10n.addProvider,
                         onPressed: () {
                           final provider = ProviderManager.mcpServerProvider;
                           _showEditDialog(context, '', provider, null);
@@ -464,7 +464,7 @@ class _McpServerState extends State<McpServer> {
         builder: (BuildContext dialogContext) {
           return AlertDialog(
             title: Text(
-              'MCP Server - ${serverName.isEmpty ? l10n.addServer : serverName}',
+              'MCP Server - ${serverName.isEmpty ? l10n.addProvider : serverName}',
               style: const TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w600,
@@ -851,4 +851,3 @@ class _McpServerState extends State<McpServer> {
     );
   }
 }
-

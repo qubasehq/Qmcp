@@ -35,7 +35,6 @@ class _GeneralSettingsState extends State<GeneralSettings> {
                       _buildLocaleCard(context),
                       _buildAvatarCard(context),
                       _buildSystemPromptCard(context),
-                      _buildFeatureCard(context),
                       const SizedBox(height: 20),
                     ],
                   ),
@@ -117,63 +116,6 @@ class _GeneralSettingsState extends State<GeneralSettings> {
                     }
                   },
                 ),
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildFeatureCard(BuildContext context) {
-    final l10n = AppLocalizations.of(context)!;
-    return Consumer<SettingsProvider>(
-      builder: (context, settings, child) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildSectionTitle(context, l10n.featureSettings,
-                CupertinoIcons.square_stack_3d_up),
-            Card(
-              elevation: 0,
-              color: Theme.of(context).colorScheme.surface,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-                side: BorderSide(
-                  color: Theme.of(context).colorScheme.outline.withAlpha(50),
-                ),
-              ),
-              child: Column(
-                children: [
-                  SettingSwitch(
-                    title: l10n.enableArtifacts,
-                    subtitle: l10n.enableArtifactsDescription,
-                    value: settings.generalSetting.enableArtifacts,
-                    titleFontSize: 14,
-                    subtitleFontSize: 12,
-                    onChanged: (bool value) {
-                      settings.updateGeneralSettingsPartially(
-                          enableArtifacts: value);
-                    },
-                  ),
-                  Divider(
-                    height: 1,
-                    indent: 16,
-                    endIndent: 16,
-                    color: Theme.of(context).colorScheme.outline.withAlpha(50),
-                  ),
-                  SettingSwitch(
-                    title: l10n.enableToolUsage,
-                    subtitle: l10n.enableToolUsageDescription,
-                    value: settings.generalSetting.enableToolUsage,
-                    titleFontSize: 14,
-                    subtitleFontSize: 12,
-                    onChanged: (bool value) {
-                      settings.updateGeneralSettingsPartially(
-                          enableToolUsage: value);
-                    },
-                  ),
-                ],
               ),
             ),
           ],
@@ -386,4 +328,3 @@ class _GeneralSettingsState extends State<GeneralSettings> {
     );
   }
 }
-

@@ -45,7 +45,11 @@ class _CollapsibleSectionState extends State<CollapsibleSection> {
                       ? Icons.keyboard_arrow_down
                       : Icons.keyboard_arrow_right,
                   size: 16,
-                  color: AppColors.grey[600],
+                  color: AppColors.getThemeColor(
+                    context,
+                    lightColor: AppColors.black.withOpacity(0.6),
+                    darkColor: AppColors.white.withOpacity(0.6),
+                  ),
                 ),
                 Expanded(child: widget.title),
               ],

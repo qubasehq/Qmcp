@@ -25,10 +25,10 @@ class _KeysSettingsState extends State<KeysSettings> {
   bool _isLoading = false;
   int _selectedProvider = 0;
   bool _hasChanges = false;
+  bool _obscureText = true; 
 
   final List<KeySettingControllers> _controllers = [];
 
-  
   final List<KeysSetting> _llmApiConfigs = [];
 
   @override
@@ -67,7 +67,7 @@ class _KeysSettingsState extends State<KeysSettings> {
     final apiSettings = await settings.loadSettings();
     print("apiSettings: ${jsonEncode(apiSettings)}");
 
-    // Clear existing list
+    // Clear existing lists
     setState(() {
       _llmApiConfigs.clear();
       _controllers.clear();
@@ -77,7 +77,7 @@ class _KeysSettingsState extends State<KeysSettings> {
     for (var apiSetting in apiSettings) {
       setState(() {
         _llmApiConfigs.add(apiSetting);
-        // 为每个配置添加一个控制器
+        // Add controller for each configuration
         _controllers.add(KeySettingControllers(
           keyController: TextEditingController(text: apiSetting.apiKey),
           endpointController:
@@ -99,7 +99,7 @@ class _KeysSettingsState extends State<KeysSettings> {
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     return Scaffold(
-      backgroundColor: Theme.of(context).colorScheme.surface,
+      backgroundColor: Theme.of(context).colorScheme.background,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(12.0),
@@ -112,135 +112,295 @@ class _KeysSettingsState extends State<KeysSettings> {
                 });
               }
             },
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // 左侧提供商列表
-                SizedBox(
-                  width: 180, // 固定左侧宽度为180像素
-                  child: Card(
-                    elevation: 0,
-                    color: Theme.of(context).colorScheme.surface,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                      side: BorderSide(
-                        color:
-                            Theme.of(context).colorScheme.outline.withAlpha(26),
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Expanded(
-                          child: ListView.builder(
-                            itemExtent: 48.0,
-                            itemCount: _llmApiConfigs.length,
-                            itemBuilder: (context, index) {
-                              final config = _llmApiConfigs[index];
-                              return _buildProviderListTile(index, config);
-                            },
-                          ),
-                        ),
-                        Divider(
-                          color: Theme.of(context)
-                              .colorScheme
-                              .outline
-                              .withAlpha(26),
-                          height: 1,
-                        ),
-                        // 添加自定义提供商按钮
-                        SizedBox(
-                          height: 40,
-                          child: ListTile(
-                            dense: true,
-                            title: Row(
-                              children: [
-                                Icon(
-                                  CupertinoIcons.add_circled,
-                                  size: 18,
-                                  color: Theme.of(context).colorScheme.primary,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  l10n.addServer,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                    color:
-                                        Theme.of(context).colorScheme.primary,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            onTap: () {
-                              _showAddProviderDialog();
-                            },
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                // 右侧配置表单
-                Expanded(
-                  flex: 1, // 右侧占据剩余空间
-                  child: Column(
-                    children: [
-                      Expanded(
-                        child: Card(
-                          elevation: 0,
-                          margin: EdgeInsets.zero,
-                          color: Theme.of(context).colorScheme.surface,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(
-                              color: Theme.of(context)
-                                  .colorScheme
-                                  .outline
-                                  .withAlpha(26),
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(12.0),
-                            child: _buildProviderConfigForm(_selectedProvider),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      // 保存按钮
-                      SizedBox(
-                        width: double.infinity,
-                        height: 44,
-                        child: ElevatedButton(
-                          onPressed: _isLoading ? null : _saveSettings,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _hasChanges
-                                ? Theme.of(context).colorScheme.primary
-                                : Theme.of(context).colorScheme.surfaceContainerHighest,
-                            foregroundColor: _hasChanges
-                                ? Theme.of(context).colorScheme.onPrimary
-                                : Theme.of(context)
-                                    .colorScheme
-                                    .onSurfaceVariant,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            elevation: _hasChanges ? 0 : 0,
-                            padding: EdgeInsets.zero,
-                          ),
-                          child: _isLoading
-                              ? const CupertinoActivityIndicator()
-                              : CText(text: l10n.saveSettings),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile = constraints.maxWidth < 600;
+                return isMobile ? _buildMobileLayout() : _buildDesktopLayout();
+              },
             ),
           ),
         ),
       ),
+    );
+  }
+
+  // Build mobile layout
+  Widget _buildMobileLayout() {
+    return Column(
+      children: [
+        // Configuration card list
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.only(top: 4),
+            itemCount: _llmApiConfigs.length,
+            separatorBuilder: (context, index) => const SizedBox(height: 12),
+            itemBuilder: (context, index) => _buildProviderConfigCard(index),
+          ),
+        ),
+        const SizedBox(height: 12),
+        // Bottom button section
+        Column(
+          children: [
+            // Save button
+            _buildSaveButton(),
+            const SizedBox(height: 12),
+            // Add server button
+            _buildAddServerButton(),
+          ],
+        ),
+      ],
+    );
+  }
+
+  // Build provider configuration card
+  Widget _buildProviderConfigCard(int index) {
+    final config = _llmApiConfigs[index];
+    final controllers = _controllers[index];
+    final l10n = AppLocalizations.of(context)!;
+
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      color: Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outline.withAlpha(26),
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Build provider card header
+            _buildProviderCardHeader(config, controllers),
+            const SizedBox(height: 16),
+            // Configuration form
+            _buildProviderConfigForm(index, showTitle: false),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Build provider card header
+  Widget _buildProviderCardHeader(
+      KeysSetting config, KeySettingControllers controllers) {
+    return Row(
+      children: [
+        LlmIcon(icon: config.icon),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            config.providerName ?? '',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
+          ),
+        ),
+        if (config.custom)
+          IconButton(
+            icon: const Icon(CupertinoIcons.delete, size: 18),
+            color: Colors.red,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(),
+            onPressed: () => _deleteProvider(config),
+          ),
+      ],
+    );
+  }
+
+  // Build save button
+  Widget _buildSaveButton() {
+    final l10n = AppLocalizations.of(context)!;
+    return SizedBox(
+      width: double.infinity,
+      height: 44,
+      child: ElevatedButton(
+        onPressed: _isLoading || !_hasChanges ? null : _saveSettings,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: _hasChanges
+              ? Theme.of(context).colorScheme.primary
+              : Theme.of(context).colorScheme.surfaceVariant,
+          foregroundColor: _hasChanges
+              ? Theme.of(context).colorScheme.onPrimary
+              : Theme.of(context).colorScheme.onSurfaceVariant,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          elevation: _hasChanges ? 0 : 0,
+          padding: EdgeInsets.zero,
+        ),
+        child: _isLoading
+            ? const CupertinoActivityIndicator()
+            : Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    CupertinoIcons.checkmark_circle,
+                    size: 18,
+                    color: _hasChanges
+                        ? Theme.of(context).colorScheme.onPrimary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                  const SizedBox(width: 8),
+                  CText(text: l10n.saveSettings),
+                ],
+              ),
+      ),
+    );
+  }
+
+  // Build add server button
+  Widget _buildAddServerButton() {
+    final l10n = AppLocalizations.of(context)!;
+    return SizedBox(
+      width: double.infinity,
+      height: 44,
+      child: OutlinedButton.icon(
+        icon: Icon(
+          CupertinoIcons.add_circled,
+          size: 18,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        label: Text(l10n.addProvider),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: Theme.of(context).colorScheme.primary,
+          side: BorderSide(color: Theme.of(context).colorScheme.primary),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+        onPressed: () => _showAddProviderDialog(),
+      ),
+    );
+  }
+
+  // Delete provider method
+  void _deleteProvider(KeysSetting config) {
+    setState(() {
+      final index = _llmApiConfigs.indexOf(config);
+      if (index != -1) {
+        _llmApiConfigs.removeAt(index);
+        _controllers.removeAt(index);
+        if (_selectedProvider >= _llmApiConfigs.length) {
+          _selectedProvider = _llmApiConfigs.length - 1;
+        }
+        _hasChanges = true;
+      }
+    });
+  }
+
+  // Build desktop layout
+  Widget _buildDesktopLayout() {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Left provider list
+        SizedBox(
+          width: 180,
+          child: _buildProviderList(),
+        ),
+        const SizedBox(width: 12),
+        // Right configuration section
+        Expanded(
+          child: _buildDesktopConfigSection(),
+        ),
+      ],
+    );
+  }
+
+  // Build provider list
+  Widget _buildProviderList() {
+    return Card(
+      elevation: 0,
+      color: Theme.of(context).colorScheme.surface,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Theme.of(context).colorScheme.outline.withAlpha(26),
+        ),
+      ),
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemExtent: 48.0,
+              itemCount: _llmApiConfigs.length,
+              itemBuilder: (context, index) {
+                final config = _llmApiConfigs[index];
+                return _buildProviderListTile(index, config);
+              },
+            ),
+          ),
+          Divider(
+            color: Theme.of(context).colorScheme.outline.withAlpha(26),
+            height: 1,
+          ),
+          _buildAddServerListTile(),
+        ],
+      ),
+    );
+  }
+
+  // Build add server list tile
+  Widget _buildAddServerListTile() {
+    final l10n = AppLocalizations.of(context)!;
+    return SizedBox(
+      height: 40,
+      child: ListTile(
+        dense: true,
+        title: Row(
+          children: [
+            Icon(
+              CupertinoIcons.add_circled,
+              size: 18,
+              color: Theme.of(context).colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              l10n.addProvider,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: Theme.of(context).colorScheme.primary,
+              ),
+            ),
+          ],
+        ),
+        onTap: () => _showAddProviderDialog(),
+      ),
+    );
+  }
+
+  // Build desktop configuration section
+  Widget _buildDesktopConfigSection() {
+    final l10n = AppLocalizations.of(context)!;
+    return Column(
+      children: [
+        Expanded(
+          child: Card(
+            elevation: 0,
+            margin: EdgeInsets.zero,
+            color: Theme.of(context).colorScheme.surface,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.outline.withAlpha(26),
+              ),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12.0),
+              child: _buildProviderConfigForm(_selectedProvider),
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        _buildSaveButton(),
+      ],
     );
   }
 
@@ -334,7 +494,7 @@ class _KeysSettingsState extends State<KeysSettings> {
                 if (modelName.isNotEmpty) {
                   setState(() {
                     if (_controllers.isNotEmpty) {
-                      // 将模型添加到当前选中的提供商
+                      // Add model to current selected provider
                       final controller = _controllers[_selectedProvider];
                       if (!controller.models.contains(modelName)) {
                         controller.models.add(modelName);
@@ -386,17 +546,17 @@ class _KeysSettingsState extends State<KeysSettings> {
     );
   }
 
-  Widget _buildProviderConfigForm(int index) {
-    // 安全检查：确保索引有效且数组不为空
+  Widget _buildProviderConfigForm(int index, {bool showTitle = true}) {
+    // Security check: Ensure index is valid and array is not empty
     if (_llmApiConfigs.isEmpty ||
         _controllers.isEmpty ||
         index < 0 ||
         index >= _llmApiConfigs.length ||
         index >= _controllers.length) {
-      // 返回一个空白界面或提示信息
+      // Return a blank interface or prompt information
       return Center(
         child: Text(
-          'No API configuration available',
+          'No API configurations available',
           style: TextStyle(
             fontSize: 16,
             color: Theme.of(context).colorScheme.onSurface,
@@ -413,41 +573,43 @@ class _KeysSettingsState extends State<KeysSettings> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // 提供商标题
-          Row(
-            children: [
-              LlmIcon(icon: config.icon),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  config.providerName ?? '',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Theme.of(context).colorScheme.onSurface,
+          // Provider title
+          if (showTitle) ...[
+            Row(
+              children: [
+                LlmIcon(icon: config.icon),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    config.providerName ?? '',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
                 ),
-              ),
-              if (config.custom)
-                IconButton(
-                  icon: const Icon(CupertinoIcons.delete, size: 18),
-                  color: Colors.red,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
-                  onPressed: () {
-                    setState(() {
-                      _llmApiConfigs.removeAt(_selectedProvider);
-                      _controllers.removeAt(_selectedProvider);
-                      if (_selectedProvider >= _llmApiConfigs.length) {
-                        _selectedProvider = _llmApiConfigs.length - 1;
-                      }
-                      _hasChanges = true;
-                    });
-                  },
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
+                if (config.custom)
+                  IconButton(
+                    icon: const Icon(CupertinoIcons.delete, size: 18),
+                    color: Colors.red,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () {
+                      setState(() {
+                        _llmApiConfigs.removeAt(_selectedProvider);
+                        _controllers.removeAt(_selectedProvider);
+                        if (_selectedProvider >= _llmApiConfigs.length) {
+                          _selectedProvider = _llmApiConfigs.length - 1;
+                        }
+                        _hasChanges = true;
+                      });
+                    },
+                  ),
+              ],
+            ),
+            const SizedBox(height: 16),
+          ],
 
           // Provider Name
           Text(
@@ -462,7 +624,7 @@ class _KeysSettingsState extends State<KeysSettings> {
           TextFormField(
             controller: controllers.providerNameController,
             decoration: InputDecoration(
-              hintText: 'Enter provider name',
+              hintText: 'Please enter provider name',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
                 borderSide: BorderSide(
@@ -501,15 +663,15 @@ class _KeysSettingsState extends State<KeysSettings> {
             maxLength: 50,
             buildCounter: (context,
                 {required currentLength, required isFocused, maxLength}) {
-              return null; // 隐藏字符计数器
+              return null; // Hide character counter
             },
           ),
           const SizedBox(height: 12),
 
-          // API 风格
+          // API Style
           if (config.custom) ...[
             Text(
-              'API 风格',
+              'API Style',
               style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
@@ -563,6 +725,16 @@ class _KeysSettingsState extends State<KeysSettings> {
                   value: 'claude',
                   child: Text(
                     'Claude',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ),
+                DropdownMenuItem(
+                  value: 'gemini',
+                  child: Text(
+                    'Gemini',
                     style: TextStyle(
                       fontSize: 14,
                       color: Theme.of(context).colorScheme.onSurface,
@@ -645,7 +817,7 @@ class _KeysSettingsState extends State<KeysSettings> {
           const SizedBox(height: 4),
           TextFormField(
             controller: controllers.keyController,
-            obscureText: true,
+            obscureText: _obscureText,
             decoration: InputDecoration(
               hintText: l10n.enterApiKey(config.providerName ?? ''),
               hintStyle: TextStyle(
@@ -673,11 +845,16 @@ class _KeysSettingsState extends State<KeysSettings> {
                   const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               isDense: true,
               suffixIcon: IconButton(
-                icon: const Icon(CupertinoIcons.eye_slash, size: 16),
+                icon: Icon(
+                  _obscureText ? CupertinoIcons.eye_slash : CupertinoIcons.eye,
+                  size: 16,
+                ),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
                 onPressed: () {
-                  // 切换密码可见性
+                  setState(() {
+                    _obscureText = !_obscureText;
+                  });
                 },
               ),
             ),
@@ -755,8 +932,8 @@ class _KeysSettingsState extends State<KeysSettings> {
                       LLMProvider.values.byName(controllers.apiStyleController);
 
                   final llm = LLMFactory.create(provider,
-                      apiKey: controllers.keyController.text,
-                      baseUrl: controllers.endpointController.text);
+                      apiKey: controllers.keyController!.text,
+                      baseUrl: controllers.endpointController!.text);
 
                   final models = await llm.models();
                   setState(() {
@@ -764,12 +941,12 @@ class _KeysSettingsState extends State<KeysSettings> {
                     if (controllers.enabledModels.isEmpty) {
                       controllers.enabledModels.addAll(models);
                     } else {
-                      // 确保enabledModels按照models中的顺序排序
+                      // Ensure enabledModels are sorted in the order of models
                       controllers.enabledModels.sort((a, b) =>
                           controllers.models.indexOf(a) -
                           controllers.models.indexOf(b));
                     }
-                    // 设置变更标志
+                    // Set change flag
                     _hasChanges = true;
                   });
                 },
@@ -777,13 +954,13 @@ class _KeysSettingsState extends State<KeysSettings> {
             ],
           ),
 
-          // 模型列表
+          // Model list
 
           const SizedBox(height: 12),
-          // 模型列表，直接显示所有模型
+          // Model list, directly display all models
           ...controllers.models.map((model) => _buildModelListItem(
               model, controllers.enabledModels.contains(model))),
-          const SizedBox(height: 8), // 底部留一些空间
+          const SizedBox(height: 8), // Bottom leave some space
         ],
       ),
     );
@@ -791,11 +968,11 @@ class _KeysSettingsState extends State<KeysSettings> {
 
   Widget _buildModelListItem(String modelName, bool isEnabled) {
     if (_selectedProvider < 0 || _selectedProvider >= _controllers.length) {
-      return const SizedBox(); // 防止索引错误
+      return const SizedBox(); // Prevent index error
     }
 
     final controllers = _controllers[_selectedProvider];
-    // 检查模型是否在启用列表中
+    // Check if model is in enabled list
     bool modelEnabled = controllers.enabledModels.contains(modelName);
 
     return Container(
@@ -831,10 +1008,10 @@ class _KeysSettingsState extends State<KeysSettings> {
               constraints: const BoxConstraints(),
               onPressed: () {
                 setState(() {
-                  // 从两个列表中删除模型
+                  // Remove model from both lists
                   controllers.models.remove(modelName);
                   controllers.enabledModels.remove(modelName);
-                  // 设置变更标志
+                  // Set change flag
                   _hasChanges = true;
                 });
               },
@@ -848,21 +1025,21 @@ class _KeysSettingsState extends State<KeysSettings> {
               value: modelEnabled,
               onToggle: (val) {
                 setState(() {
-                  // 更新模型启用状态
+                  // Update model enabled status
                   if (val) {
-                    // 启用模型
+                    // Enable model
                     if (!controllers.enabledModels.contains(modelName)) {
                       controllers.enabledModels.add(modelName);
-                      // 确保enabledModels按照models中的顺序排序
+                      // Ensure enabledModels are sorted in the order of models
                       controllers.enabledModels.sort((a, b) =>
                           controllers.models.indexOf(a) -
                           controllers.models.indexOf(b));
                     }
                   } else {
-                    // 禁用模型
+                    // Disable model
                     controllers.enabledModels.remove(modelName);
                   }
-                  // 设置变更标志
+                  // Set change flag
                   _hasChanges = true;
                 });
               },
@@ -908,7 +1085,7 @@ class _KeysSettingsState extends State<KeysSettings> {
                     ))
                 .toList());
 
-        // 重置变更状态
+        // Reset change status
         if (mounted) {
           setState(() {
             _hasChanges = false;
@@ -963,4 +1140,3 @@ class KeySettingControllers {
     providerNameController.dispose();
   }
 }
-

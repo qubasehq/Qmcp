@@ -38,7 +38,7 @@
     "mcpServerDesktopOnly": "MCP Server 仅支持桌面端（Windows、macOS、Linux）",
     "searchServer": "搜索服务器...",
     "noServerConfigs": "未找到服务器配置",
-    "addServer": "添加服务器",
+    "addProvider": "添加提供商",
     "refresh": "刷新",
     "install": "安装",
     "edit": "编辑",

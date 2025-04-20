@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
 import 'base_llm_client.dart';
 import 'dart:convert';
 import 'model.dart';
@@ -8,22 +8,19 @@ import 'package:qubase_mcp/utils/file_content.dart';
 class OpenAIClient extends BaseLLMClient {
   final String apiKey;
   final String baseUrl;
-  final Dio _dio;
+  final Map<String, String> _headers;
 
   OpenAIClient({
     required this.apiKey,
     String? baseUrl,
-    Dio? dio,
   })  : baseUrl = (baseUrl == null || baseUrl.isEmpty)
             ? 'https://api.openai.com/v1'
             : baseUrl,
-        _dio = dio ??
-            Dio(BaseOptions(
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': 'Bearer $apiKey',
-              },
-            ));
+        _headers = {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Accept': 'application/json; charset=utf-8',
+          'Authorization': 'Bearer $apiKey',
+        };
 
   @override
   Future<LLMResponse> chatCompletion(CompletionRequest request) async {
@@ -48,22 +45,23 @@ class OpenAIClient extends BaseLLMClient {
     }
 
     final bodyStr = jsonEncode(body);
+    Logger.root.fine('OpenAI request: $bodyStr');
 
     try {
-      final response = await _dio.post(
-        "$baseUrl/chat/completions",
-        data: bodyStr,
+      final response = await http.post(
+        Uri.parse("$baseUrl/chat/completions"),
+        headers: _headers,
+        body: jsonEncode(body),
       );
 
-      // Handle ResponseBody type response
-      dynamic jsonData;
-      if (response.data is ResponseBody) {
-        final responseBody = response.data as ResponseBody;
-        final responseStr = await utf8.decodeStream(responseBody.stream);
-        jsonData = jsonDecode(responseStr);
-      } else {
-        jsonData = response.data;
+      final responseBody = utf8.decode(response.bodyBytes);
+      Logger.root.fine('OpenAI response: $responseBody');
+
+      if (response.statusCode >= 400) {
+        throw Exception('HTTP ${response.statusCode}: $responseBody');
       }
+
+      final jsonData = jsonDecode(responseBody);
 
       final message = jsonData['choices'][0]['message'];
 
@@ -110,62 +108,59 @@ class OpenAIClient extends BaseLLMClient {
     Logger.root.fine("debug log:openai stream body: ${jsonEncode(body)}");
 
     try {
-      _dio.options.responseType = ResponseType.stream;
-      final response = await _dio.post(
-        "$baseUrl/chat/completions",
-        data: jsonEncode(body),
-      );
+      final request =
+          http.Request('POST', Uri.parse("$baseUrl/chat/completions"));
+      request.headers.addAll(_headers);
+      request.body = jsonEncode(body);
 
-      String buffer = '';
-      await for (final chunk in response.data.stream) {
-        final decodedChunk = utf8.decode(chunk);
-        buffer += decodedChunk;
+      final response = await http.Client().send(request);
 
-        // Handle possible multiline data
-        while (buffer.contains('\n')) {
-          final index = buffer.indexOf('\n');
-          final line = buffer.substring(0, index).trim();
-          buffer = buffer.substring(index + 1);
+      if (response.statusCode >= 400) {
+        final responseBody = await response.stream.bytesToString();
+        Logger.root.fine('OpenAI response: $responseBody');
 
-          if (line.startsWith('data: ')) {
-            final jsonStr = line.substring(6).trim();
-            if (jsonStr.isEmpty || jsonStr == '[DONE]') continue;
+        throw Exception('HTTP ${response.statusCode}: $responseBody');
+      }
 
-            try {
-              final json = jsonDecode(jsonStr);
+      final stream = response.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter());
 
-              // Check if choices array is empty
-              if (json['choices'] == null || json['choices'].isEmpty) {
-                continue;
-              }
+      await for (final line in stream) {
+        if (!line.startsWith('data: ')) continue;
+        final data = line.substring(6);
+        if (data.isEmpty || data == '[DONE]') continue;
 
-              final delta = json['choices'][0]['delta'];
-              if (delta == null) continue;
+        try {
+          final json = jsonDecode(data);
 
-              // Parse tool calls
-              final toolCalls = delta['tool_calls']
-                  ?.map<ToolCall>((t) => ToolCall(
-                        id: t['id'] ?? '',
-                        type: t['type'] ?? '',
-                        function: FunctionCall(
-                          name: t['function']?['name'] ?? '',
-                          arguments: t['function']?['arguments'] ?? '{}',
-                        ),
-                      ))
-                  ?.toList();
-
-              // Only yield response when there is content or tool calls
-              if (delta['content'] != null || toolCalls != null) {
-                yield LLMResponse(
-                  content: delta['content'],
-                  toolCalls: toolCalls,
-                );
-              }
-            } catch (e) {
-              Logger.root.severe('Failed to parse chunk: $jsonStr $e');
-              continue;
-            }
+          if (json['choices'] == null || json['choices'].isEmpty) {
+            continue;
           }
+
+          final delta = json['choices'][0]['delta'];
+          if (delta == null) continue;
+
+          final toolCalls = delta['tool_calls']
+              ?.map<ToolCall>((t) => ToolCall(
+                    id: t['id'] ?? '',
+                    type: t['type'] ?? '',
+                    function: FunctionCall(
+                      name: t['function']?['name'] ?? '',
+                      arguments: t['function']?['arguments'] ?? '{}',
+                    ),
+                  ))
+              ?.toList();
+
+          if (delta['content'] != null || toolCalls != null) {
+            yield LLMResponse(
+              content: delta['content'],
+              toolCalls: toolCalls,
+            );
+          }
+        } catch (e) {
+          Logger.root.severe('Failed to parse event data: $data $e');
+          continue;
         }
       }
     } catch (e) {
@@ -211,17 +206,22 @@ $conversationText""",
     }
 
     try {
-      final response = await _dio.get("$baseUrl/models");
+      final response = await http.get(
+        Uri.parse("$baseUrl/models"),
+        headers: _headers,
+      );
 
-      final data = response.data;
+      if (response.statusCode != 200) {
+        throw Exception('HTTP ${response.statusCode}: ${response.body}');
+      }
 
+      final data = jsonDecode(response.body);
       final models =
           (data['data'] as List).map((m) => m['id'].toString()).toList();
 
       return models;
     } catch (e, trace) {
       Logger.root.severe('Failed to get model list: $e, trace: $trace');
-      // Return predefined model list as fallback
       return [];
     }
   }
@@ -289,4 +289,3 @@ List<Map<String, dynamic>> chatMessageToOpenAIMessage(
     return json;
   }).toList();
 }
-

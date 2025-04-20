@@ -72,7 +72,6 @@ class GeneralSetting {
   String theme;
   bool showAssistantAvatar = false;
   bool showUserAvatar = false;
-  bool enableToolUsage = true;
   bool enableArtifacts = true;
   String systemPrompt;
   String locale;
@@ -81,7 +80,6 @@ class GeneralSetting {
     required this.theme,
     this.showAssistantAvatar = false,
     this.showUserAvatar = false,
-    this.enableToolUsage = true,
     this.enableArtifacts = true,
     this.systemPrompt = 'You are a helpful assistant.',
     this.locale = 'en',
@@ -92,8 +90,6 @@ class GeneralSetting {
       'theme': theme,
       'showAssistantAvatar': showAssistantAvatar,
       'showUserAvatar': showUserAvatar,
-      'enableArtifacts': enableArtifacts,
-      'enableToolUsage': enableToolUsage,
       'systemPrompt': systemPrompt,
       'locale': locale,
     };
@@ -104,8 +100,6 @@ class GeneralSetting {
       theme: json['theme'] as String? ?? 'light',
       showAssistantAvatar: json['showAssistantAvatar'] as bool? ?? true,
       showUserAvatar: json['showUserAvatar'] as bool? ?? true,
-      enableToolUsage: json['enableToolUsage'] as bool? ?? true,
-      enableArtifacts: json['enableArtifacts'] as bool? ?? false,
       systemPrompt: json['systemPrompt'] as String? ?? defaultSystemPrompt,
       locale: json['locale'] as String? ?? 'en',
     );
@@ -146,22 +140,12 @@ class ChatSetting {
       presencePenalty: json['presencePenalty'] as double? ?? 0.0,
     );
   }
-
-  llm_model.ModelSetting toModelSetting() {
-    return llm_model.ModelSetting(
-      temperature: temperature,
-      maxTokens: maxTokens,
-      topP: topP,
-      frequencyPenalty: frequencyPenalty,
-      presencePenalty: presencePenalty,
-    );
-  }
 }
 
 final List<KeysSetting> defaultApiSettings = [
   KeysSetting(
     apiKey: '',
-    apiEndpoint: '',
+    apiEndpoint: 'https://api.openai.com/v1',
     apiStyle: 'openai',
     providerId: 'openai',
     providerName: 'OpenAI',
@@ -170,7 +154,7 @@ final List<KeysSetting> defaultApiSettings = [
   ),
   KeysSetting(
     apiKey: '',
-    apiEndpoint: '',
+    apiEndpoint: 'https://api.anthropic.com/v1',
     apiStyle: 'claude',
     providerId: 'claude',
     providerName: 'Claude',
@@ -179,16 +163,7 @@ final List<KeysSetting> defaultApiSettings = [
   ),
   KeysSetting(
     apiKey: '',
-    apiEndpoint: '',
-    apiStyle: 'gemini',
-    providerId: 'gemini',
-    providerName: 'Gemini',
-    icon: 'gemini',
-    custom: false,
-  ),
-  KeysSetting(
-    apiKey: '',
-    apiEndpoint: '',
+    apiEndpoint: 'https://api.deepseek.com',
     apiStyle: 'deepseek',
     providerId: 'deepseek',
     providerName: 'DeepSeek',
@@ -197,11 +172,35 @@ final List<KeysSetting> defaultApiSettings = [
   ),
   KeysSetting(
     apiKey: '',
-    apiEndpoint: '',
+    apiEndpoint: 'http://localhost:11434',
     apiStyle: 'openai',
     providerId: 'ollama',
     providerName: 'Ollama',
     icon: 'ollama',
+    custom: false,
+  ),
+];
+
+final List<KeysSetting> defaultGeminiSettings = [
+  KeysSetting(
+    apiKey: '',
+    apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta',
+    apiStyle: 'gemini',
+    providerId: 'gemini',
+    providerName: 'Gemini',
+    icon: 'gemini',
+    custom: false,
+  ),
+];
+
+final List<KeysSetting> defaultOpenRouterSettings = [
+  KeysSetting(
+    apiKey: '',
+    apiEndpoint: 'https://openrouter.ai/api/v1',
+    apiStyle: 'openai',
+    providerId: 'openrouter',
+    providerName: 'OpenRouter',
+    icon: 'openrouter',
     custom: false,
   ),
 ];
@@ -254,7 +253,8 @@ class SettingsProvider extends ChangeNotifier {
             label: model,
             providerId: setting.providerId ?? '',
             icon: setting.icon,
-            providerName: setting.providerName ?? '');
+            providerName: setting.providerName ?? '',
+            apiStyle: setting.apiStyle ?? '');
 
         if (LLMFactoryHelper.isChatModel(m)) {
           models.add(m);
@@ -286,9 +286,21 @@ class SettingsProvider extends ChangeNotifier {
       settings = [..._apiSettings];
     }
 
-    // 确保设置不为空
-    if (settings.isEmpty) {
-      settings = [...defaultApiSettings];
+    // default gemini settings is not in settings
+    if (!settings.any((element) => element.providerId == 'gemini')) {
+      settings = [...settings, ...defaultGeminiSettings];
+    }
+
+    // default openrouter settings is not in settings
+    if (!settings.any((element) => element.providerId == 'openrouter')) {
+      settings = [...settings, ...defaultOpenRouterSettings];
+    }
+
+    for (var setting in defaultApiSettings) {
+      if (!settings
+          .any((element) => element.providerId == setting.providerId)) {
+        settings = [...settings, setting];
+      }
     }
 
     _apiSettings = settings;
@@ -334,10 +346,8 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> updateGeneralSettingsPartially({
     String? theme,
     bool? showAssistantAvatar,
-    bool? enableToolUsage,
     bool? showUserAvatar,
     String? systemPrompt,
-    bool? enableArtifacts,
     String? locale,
   }) async {
     final prefs = await SharedPreferences.getInstance();
@@ -346,9 +356,7 @@ class SettingsProvider extends ChangeNotifier {
       showAssistantAvatar:
           showAssistantAvatar ?? _generalSetting.showAssistantAvatar,
       showUserAvatar: showUserAvatar ?? _generalSetting.showUserAvatar,
-      enableToolUsage: enableToolUsage ?? _generalSetting.enableToolUsage,
       systemPrompt: systemPrompt ?? _generalSetting.systemPrompt,
-      enableArtifacts: enableArtifacts ?? _generalSetting.enableArtifacts,
       locale: locale ?? _generalSetting.locale,
     );
     await prefs.setString(
@@ -359,10 +367,8 @@ class SettingsProvider extends ChangeNotifier {
   Future<void> updateGeneralSettings({
     required String theme,
     required bool showAssistantAvatar,
-    required bool enableToolUsage,
     required bool showUserAvatar,
     required String systemPrompt,
-    required bool enableArtifacts,
     required String locale,
   }) async {
     final prefs = await SharedPreferences.getInstance();
@@ -370,9 +376,7 @@ class SettingsProvider extends ChangeNotifier {
       theme: theme,
       showAssistantAvatar: showAssistantAvatar,
       showUserAvatar: showUserAvatar,
-      enableToolUsage: enableToolUsage,
       systemPrompt: systemPrompt,
-      enableArtifacts: enableArtifacts,
       locale: locale,
     );
     await prefs.setString(
@@ -408,4 +412,3 @@ class SettingsProvider extends ChangeNotifier {
     notifyListeners();
   }
 }
-

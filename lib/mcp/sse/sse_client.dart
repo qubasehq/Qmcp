@@ -4,7 +4,7 @@ import 'package:synchronized/synchronized.dart';
 import '../client/mcp_client_interface.dart';
 import '../models/json_rpc_message.dart';
 import '../models/server.dart';
-import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'dart:convert';
 import 'dart:async';
@@ -26,6 +26,11 @@ class SSEClient implements McpClient {
   static const int _maxReconnectAttempts = 5;
   static const Duration _initialReconnectDelay = Duration(seconds: 1);
   Timer? _reconnectTimer;
+
+  final Map<String, String> _headers = {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Accept': 'application/json; charset=utf-8',
+  };
 
   SSEClient({required ServerConfig serverConfig})
       : _serverConfig = serverConfig;
@@ -155,11 +160,16 @@ class SSEClient implements McpClient {
 
     await _writeLock.synchronized(() async {
       try {
-        await Dio().post(
-          _messageEndpoint!,
-          data: jsonEncode(data),
-          options: Options(headers: {'Content-Type': 'application/json'}),
+        final response = await http.post(
+          Uri.parse(_messageEndpoint!),
+          headers: _headers,
+          body: jsonEncode(data),
         );
+
+        if (response.statusCode >= 400) {
+          throw Exception(
+              'HTTP POST failed: ${response.statusCode} - ${response.body}');
+        }
       } catch (e) {
         Logger.root.severe('Failed to send HTTP POST: $e');
         rethrow;
@@ -246,4 +256,3 @@ class SSEClient implements McpClient {
     return sendMessage(message);
   }
 }
-

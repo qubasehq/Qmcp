@@ -749,14 +749,11 @@ class _ChatPageState extends State<ChatPage> {
           content: systemPrompt,
           role: MessageRole.system,
         ),
-        // ...messageList.map((m) => m.copyWith(
-        //       content: m.content?.replaceAll("done=\"true\"", ""),
-        //     )),
         ...messageList.where((m) =>
             !m.content!.startsWith('<function') ||
             !m.content!.startsWith('<call_function_result')),
       ],
-      modelSetting: modelSetting?.toModelSetting(),
+      modelSetting: modelSetting,
     ));
 
     _initializeAssistantResponse();

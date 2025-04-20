@@ -325,11 +325,11 @@ abstract class AppLocalizations {
   /// **'No server configurations found'**
   String get noServerConfigs;
 
-  /// No description provided for @addServer.
+  /// No description provided for @addProvider.
   ///
   /// In en, this message translates to:
-  /// **'Add Server'**
-  String get addServer;
+  /// **'Add Provider'**
+  String get addProvider;
 
   /// No description provided for @refresh.
   ///

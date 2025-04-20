@@ -25,7 +25,8 @@ class ChatModelProvider extends ChangeNotifier {
       label: "GPT-4o-mini",
       providerId: "openai",
       icon: "openai",
-      providerName: "OpenAI");
+      providerName: "OpenAI",
+      apiStyle: "openai");
 
   llm_model.Model get currentModel => _currentModel;
 

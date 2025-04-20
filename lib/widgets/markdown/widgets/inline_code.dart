@@ -24,8 +24,8 @@ class InlineCodeNode extends SpanNode {
           decoration: BoxDecoration(
             color: AppColors.getThemeColor(
               context,
-              lightColor: AppColors.grey[200],
-              darkColor: AppColors.grey[800],
+              lightColor: AppColors.black.withOpacity(0.1),
+              darkColor: AppColors.white.withOpacity(0.1),
             ),
             borderRadius: BorderRadius.circular(4.0),
           ),

@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
 import 'base_llm_client.dart';
 import 'dart:convert';
 import 'model.dart';
@@ -6,26 +6,30 @@ import 'package:logging/logging.dart';
 
 class OllamaClient extends BaseLLMClient {
   final String baseUrl;
-  final Dio _dio;
+  final Map<String, String> _headers;
 
   OllamaClient({
     String? baseUrl,
-    Dio? dio,
   })  : baseUrl = (baseUrl == null || baseUrl.isEmpty)
             ? 'http://localhost:11434'
             : baseUrl,
-        _dio = dio ??
-            Dio(BaseOptions(
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            ));
+        _headers = {
+          'Content-Type': 'application/json',
+        };
 
   @override
   Future<List<String>> models() async {
     try {
-      final response = await _dio.get("$baseUrl/api/tags");
-      final data = response.data;
+      final response = await http.get(
+        Uri.parse("$baseUrl/api/tags"),
+        headers: _headers,
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('HTTP ${response.statusCode}: ${response.body}');
+      }
+
+      final data = jsonDecode(response.body);
       final modelsList = data['models'] as List;
       return modelsList.map((model) => (model['name'] as String)).toList();
     } catch (e, trace) {
@@ -86,20 +90,21 @@ $conversationText""",
     final bodyStr = jsonEncode(body);
 
     try {
-      final response = await _dio.post(
-        "$baseUrl/v1/chat/completions",
-        data: bodyStr,
+      final response = await http.post(
+        Uri.parse("$baseUrl/v1/chat/completions"),
+        headers: _headers,
+        body: bodyStr,
       );
 
-      var jsonData;
-      if (response.data is ResponseBody) {
-        final responseBody = response.data as ResponseBody;
-        final responseStr = await utf8.decodeStream(responseBody.stream);
-        jsonData = jsonDecode(responseStr);
-      } else {
-        jsonData = response.data;
+      final responseBody = utf8.decode(response.bodyBytes);
+      Logger.root.fine('Ollama response: $responseBody');
+
+      final jsonData = jsonDecode(responseBody);
+
+      if (response.statusCode >= 400) {
+        throw Exception('HTTP ${response.statusCode}: $responseBody');
       }
-      Logger.root.fine('Response data: ${jsonEncode(jsonData)}');
+
       final message = jsonData['choices'][0]['message'];
 
       // Parse tool calls
@@ -119,7 +124,8 @@ $conversationText""",
         toolCalls: toolCalls,
       );
     } catch (e) {
-      throw await handleError(e, 'Ollama', '$baseUrl/v1/chat/completions', bodyStr);
+      throw await handleError(
+          e, 'Ollama', '$baseUrl/v1/chat/completions', bodyStr);
     }
   }
 
@@ -145,62 +151,62 @@ $conversationText""",
     }
 
     try {
-      _dio.options.responseType = ResponseType.stream;
-      final response = await _dio.post(
-        "$baseUrl/v1/chat/completions",
-        data: jsonEncode(body),
-      );
+      final request =
+          http.Request('POST', Uri.parse("$baseUrl/v1/chat/completions"));
+      request.headers.addAll(_headers);
+      request.body = jsonEncode(body);
 
-      String buffer = '';
-      await for (final chunk in response.data.stream) {
-        final decodedChunk = utf8.decode(chunk);
-        buffer += decodedChunk;
+      final response = await http.Client().send(request);
 
-        while (buffer.contains('\n')) {
-          final index = buffer.indexOf('\n');
-          final line = buffer.substring(0, index).trim();
-          buffer = buffer.substring(index + 1);
+      if (response.statusCode >= 400) {
+        final responseBody = await response.stream.bytesToString();
+        Logger.root.fine('Ollama response: $responseBody');
 
-          if (line.startsWith('data: ')) {
-            final jsonStr = line.substring(6).trim();
-            if (jsonStr.isEmpty || jsonStr == '[DONE]') continue;
+        throw Exception('HTTP ${response.statusCode}: $responseBody');
+      }
 
-            try {
-              final json = jsonDecode(jsonStr);
+      final stream = response.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter());
 
-              // 检查 choices 数组是否为空
-              if (json['choices'] == null || json['choices'].isEmpty) {
-                continue;
-              }
+      await for (final line in stream) {
+        if (!line.startsWith('data: ')) continue;
+        final jsonStr = line.substring(6).trim();
+        if (jsonStr.isEmpty || jsonStr == '[DONE]') continue;
 
-              final delta = json['choices'][0]['delta'];
-              if (delta == null) continue;
+        try {
+          final json = jsonDecode(jsonStr);
 
-              // Parse tool calls
-              final toolCalls = delta['tool_calls']
-                  ?.map<ToolCall>((t) => ToolCall(
-                        id: t['id'] ?? '',
-                        type: 'function',
-                        function: FunctionCall(
-                          name: t['function']?['name'] ?? '',
-                          arguments:
-                              jsonEncode(t['function']?['arguments'] ?? {}),
-                        ),
-                      ))
-                  ?.toList();
-
-              // Only yield when content is not empty or there are tool calls
-              if (delta['content'] != null || toolCalls != null) {
-                yield LLMResponse(
-                  content: delta['content'],
-                  toolCalls: toolCalls,
-                );
-              }
-            } catch (e) {
-              Logger.root.severe('Failed to parse stream chunk: $jsonStr $e');
-              continue;
-            }
+          // 检查 choices 数组是否为空
+          if (json['choices'] == null || json['choices'].isEmpty) {
+            continue;
           }
+
+          final delta = json['choices'][0]['delta'];
+          if (delta == null) continue;
+
+          // Parse tool calls
+          final toolCalls = delta['tool_calls']
+              ?.map<ToolCall>((t) => ToolCall(
+                    id: t['id'] ?? '',
+                    type: 'function',
+                    function: FunctionCall(
+                      name: t['function']?['name'] ?? '',
+                      arguments: jsonEncode(t['function']?['arguments'] ?? {}),
+                    ),
+                  ))
+              ?.toList();
+
+          // Only yield when content is not empty or there are tool calls
+          if (delta['content'] != null || toolCalls != null) {
+            yield LLMResponse(
+              content: delta['content'],
+              toolCalls: toolCalls,
+            );
+          }
+        } catch (e) {
+          Logger.root.severe('Failed to parse stream chunk: $jsonStr $e');
+          continue;
         }
       }
     } catch (e) {

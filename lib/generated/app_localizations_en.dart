@@ -125,7 +125,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get noServerConfigs => 'No server configurations found';
 
   @override
-  String get addServer => 'Add Server';
+  String get addProvider => 'Add Provider';
 
   @override
   String get refresh => 'Refresh';

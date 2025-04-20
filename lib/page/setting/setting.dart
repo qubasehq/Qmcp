@@ -63,7 +63,7 @@ class _SettingPageState extends State<SettingPage> {
   }
 }
 
-// 选项卡数据模型
+
 class SettingTab {
   final String title;
   final IconData icon;

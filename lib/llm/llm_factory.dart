@@ -55,15 +55,14 @@ class LLMFactoryHelper {
       Logger.root.fine(
           'Using API Key: ${apiKey.isEmpty ? 'empty' : apiKey.substring(0, 10)}***** for provider: ${currentModel.providerId} model: $currentModel');
 
-      return LLMFactory.create(
-          LLMFactoryHelper.providerMap[currentModel.providerId] ??
-              (throw ArgumentError("Unknown provider: $currentModel")),
-          apiKey: apiKey,
-          baseUrl: baseUrl);
+      var provider = LLMFactoryHelper.providerMap[currentModel.providerId];
+
+      provider ??= LLMProvider.values.byName(currentModel.apiStyle);
+
+      return LLMFactory.create(provider, apiKey: apiKey, baseUrl: baseUrl);
     } catch (e) {
-      // If no matching provider is found, use default OpenAI configuration
       Logger.root
-          .warning('No matching provider configuration found for: ${currentModel.providerId}, using default OpenAI configuration');
+          .warning('Provider configuration not found: ${currentModel.providerId}, using default OpenAI configuration');
 
       var openAISetting = ProviderManager.settingsProvider.apiSettings
           .firstWhere((element) => element.providerId == "openai",
@@ -75,4 +74,3 @@ class LLMFactoryHelper {
     }
   }
 }
-

@@ -1,168 +1,144 @@
-import 'dart:convert';
-import 'package:logging/logging.dart';
+import 'package:http/http.dart' as http;
 import 'base_llm_client.dart';
-import 'model.dart' as llm_model;
-import 'package:google_generative_ai/google_generative_ai.dart' as genai;
-import 'package:qubase_mcp/utils/file_content.dart';
+import 'dart:convert';
+import 'model.dart';
+import 'package:logging/logging.dart';
 
 class GeminiClient extends BaseLLMClient {
-  final _logger = Logger('GeminiClient');
   final String apiKey;
   final String baseUrl;
-  final Map<String, genai.GenerativeModel> _models = {};
+  final Map<String, String> _headers;
 
   GeminiClient({
     required this.apiKey,
     String? baseUrl,
-  }) : baseUrl = (baseUrl == null || baseUrl.isEmpty)
-            ? 'https://generativelanguage.googleapis.com/v1'
-            : baseUrl;
-
-  genai.GenerativeModel _getModel(String modelName) {
-    return _models.putIfAbsent(
-      modelName,
-      () => genai.GenerativeModel(
-        model: modelName,
-        apiKey: apiKey,
-      ),
-    );
-  }
-
-  genai.Content _convertMessage(llm_model.ChatMessage message) {
-    // Add more detailed logging
-    if (message.content?.trim().isEmpty ?? true) {
-      _logger.severe('Empty message content detected. Message ID: ${message.messageId}, Role: ${message.role}');
-      throw Exception('Message content cannot be empty');
-    }
-
-    final parts = <genai.Part>[];
-    
-    // Add text part
-    parts.add(genai.TextPart(message.content!));
-
-    // Add image parts if present
-    if (message.files != null) {
-      for (final file in message.files!) {
-        if (isImageFile(file.fileType)) {
-          parts.add(genai.DataPart('image/jpeg', base64.decode(file.fileContent)));
-        }
-      }
-    }
-
-    return genai.Content(message.role == llm_model.MessageRole.user ? 'user' : 'assistant', parts);
-  }
+  })  : baseUrl = (baseUrl == null || baseUrl.isEmpty)
+            ? 'https://generativelanguage.googleapis.com/v1beta'
+            : baseUrl,
+        _headers = {
+          'Content-Type': 'application/json',
+        };
 
   @override
-  Future<llm_model.LLMResponse> chatCompletion(llm_model.CompletionRequest request) async {
+  Future<LLMResponse> chatCompletion(CompletionRequest request) async {
+    final modelName = request.model;
+
+    final body = {
+      'contents': chatMessageToGeminiMessage(request.messages),
+      if (request.modelSetting != null)
+        'generationConfig': {
+          'temperature': request.modelSetting!.temperature,
+          'topP': request.modelSetting!.topP,
+          if (request.modelSetting!.maxTokens != null)
+            'maxOutputTokens': request.modelSetting!.maxTokens,
+        }
+    };
+
     try {
-      final modelName = request.model.isEmpty ? 'gemini-2.0-flash' : request.model;
-      
-      // Validate messages
-      if (request.messages.isEmpty) {
-        throw Exception('No messages provided');
+      final response = await http.post(
+        Uri.parse("$baseUrl/models/$modelName:generateContent?key=$apiKey"),
+        headers: _headers,
+        body: jsonEncode(body),
+      );
+
+      final responseBody = utf8.decode(response.bodyBytes);
+      Logger.root.fine('Gemini response: $responseBody');
+      if (response.statusCode >= 400) {
+        throw Exception('HTTP ${response.statusCode}: $responseBody');
       }
 
-      // Initialize chat with proper configuration
-      final chat = _getModel(modelName).startChat(
-        generationConfig: genai.GenerationConfig(
-          temperature: request.modelSetting?.temperature ?? 0.7,
-          topP: request.modelSetting?.topP ?? 1,
-          maxOutputTokens: request.modelSetting?.maxTokens,
-        ),
-        history: request.messages.length > 1 
-            ? request.messages.sublist(0, request.messages.length - 1)
-                .map((m) => _convertMessage(m))
-                .toList() 
-            : [],
-      );
-
-      // Send the last message
-      final response = await chat.sendMessage(
-        _convertMessage(request.messages.last)
-      );
-
-      if (response.text == null) {
+      final jsonData = jsonDecode(responseBody);
+      final candidates = jsonData['candidates'] as List;
+      if (candidates.isEmpty) {
         throw Exception('No response from Gemini API');
       }
 
-      // Handle function calls if present
-      if (response.candidates.isNotEmpty) {
-        final candidate = response.candidates.first;
-        if (candidate.content.parts.isNotEmpty && 
-            candidate.content.parts.first is genai.FunctionCall) {
-          final functionCall = candidate.content.parts.first as genai.FunctionCall;
-          return llm_model.LLMResponse(
-            content: response.text,
-            toolCalls: [
-              llm_model.ToolCall(
-                id: DateTime.now().millisecondsSinceEpoch.toString(),
-                type: 'function',
-                function: llm_model.FunctionCall(
-                  name: functionCall.name,
-                  arguments: jsonEncode(functionCall.args),
-                ),
-              ),
-            ],
-          );
-        }
-      }
+      final content = candidates[0]['content'];
+      final text = content['parts'][0]['text'];
 
-      return llm_model.LLMResponse(content: response.text);
-    } on genai.GenerativeAIException catch (e) {
-      _logger.severe('Gemini API error: ${e.message}');
-      throw Exception('Gemini API error: ${e.message}');
+      return LLMResponse(
+        content: text,
+      );
     } catch (e) {
-      _logger.severe('Unexpected error: $e');
-      throw Exception('Unexpected error: $e');
+      throw await handleError(e, 'Gemini',
+          '$baseUrl/models/$modelName:generateContent', jsonEncode(body));
     }
   }
 
   @override
-  Stream<llm_model.LLMResponse> chatStreamCompletion(llm_model.CompletionRequest request) async* {
+  Stream<LLMResponse> chatStreamCompletion(CompletionRequest request) async* {
+    final modelName = request.model;
+
+    final Map<String, dynamic> body = {
+      'contents': [...chatMessageToGeminiMessage(request.messages)],
+    };
+
+    if (request.modelSetting != null) {
+      body['generationConfig'] = {
+        'temperature': request.modelSetting!.temperature,
+        'topP': request.modelSetting!.topP,
+        if (request.modelSetting!.maxTokens != null)
+          'maxOutputTokens': request.modelSetting!.maxTokens,
+      };
+    }
+
     try {
-      final modelName = request.model.isEmpty ? 'gemini-2.0-flash' : request.model;
-      final chat = _getModel(modelName).startChat(
-        generationConfig: genai.GenerationConfig(
-          temperature: request.modelSetting?.temperature ?? 0.7,
-          topP: request.modelSetting?.topP ?? 1,
-          maxOutputTokens: request.modelSetting?.maxTokens,
-        ),
-      );
+      final request = http.Request(
+          'POST',
+          Uri.parse(
+              "$baseUrl/models/$modelName:streamGenerateContent?key=$apiKey&alt=sse"));
+      request.headers.addAll(_headers);
+      request.body = jsonEncode(body);
 
-      // Send each message in sequence to maintain conversation history
-      for (int i = 0; i < request.messages.length - 1; i++) {
-        await chat.sendMessage(_convertMessage(request.messages[i]));
+      final response = await http.Client().send(request);
+
+      if (response.statusCode >= 400) {
+        final responseBody = await response.stream.bytesToString();
+        Logger.root.fine('Gemini response: $responseBody');
+
+        throw Exception('HTTP ${response.statusCode}: $responseBody');
       }
 
-      // Stream the response for the last message
-      final responseStream = chat.sendMessageStream(
-        _convertMessage(request.messages.last)
-      );
+      final stream = response.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter());
 
-      await for (final chunk in responseStream) {
-        if (chunk.text != null) {
-          yield llm_model.LLMResponse(content: chunk.text);
+      await for (final line in stream) {
+        if (line.isEmpty || !line.startsWith('data: ')) continue;
+
+        try {
+          final json = jsonDecode(line.substring(6)); // Remove 'data: ' prefix
+
+          final candidates = json['candidates'] as List;
+          if (candidates.isEmpty) continue;
+
+          final content = candidates[0]['content'];
+          final text = content['parts'][0]['text'];
+
+          yield LLMResponse(
+            content: text,
+          );
+        } catch (e) {
+          Logger.root.severe('Failed to parse chunk: $line $e');
+          continue;
         }
       }
-    } on genai.GenerativeAIException catch (e) {
-      _logger.severe('Gemini API error: ${e.message}');
-      throw Exception('Gemini API error: ${e.message}');
     } catch (e) {
-      _logger.severe('Unexpected error: $e');
-      throw Exception('Unexpected error: $e');
+      throw await handleError(e, 'Gemini',
+          '$baseUrl/models/$modelName:streamGenerateContent', jsonEncode(body));
     }
   }
 
   @override
-  Future<String> genTitle(List<llm_model.ChatMessage> messages) async {
+  Future<String> genTitle(List<ChatMessage> messages) async {
     final conversationText = messages.map((msg) {
-      final role = msg.role == llm_model.MessageRole.user ? "Human" : "Assistant";
+      final role = msg.role == MessageRole.user ? "Human" : "Assistant";
       return "$role: ${msg.content}";
     }).join("\n");
 
     try {
-      final prompt = llm_model.ChatMessage(
-        role: llm_model.MessageRole.user,
+      final prompt = ChatMessage(
+        role: MessageRole.assistant,
         content:
             """Generate a concise title (max 20 characters) for the following conversation.
 The title should summarize the main topic. Return only the title without any explanation or extra punctuation.
@@ -171,57 +147,94 @@ Conversation:
 $conversationText""",
       );
 
-      final response = await chatCompletion(llm_model.CompletionRequest(
-        model: "gemini-pro",
+      final response = await chatCompletion(CompletionRequest(
+        model: "gemini-2.0-flash",
         messages: [prompt],
       ));
 
-      return response.content?.trim() ?? "New Chat";
-    } catch (e, trace) {
-      _logger.severe('Gemini gen title error: $e, trace: $trace');
-      return "New Chat";
-    }
-  }
-
-  @override
-  Future<Map<String, dynamic>> checkToolCall(
-    String model,
-    llm_model.CompletionRequest request,
-    Map<String, List<Map<String, dynamic>>> toolsResponse,
-  ) async {
-    try {
-      final response = await chatCompletion(request);
-      
-      if (response.toolCalls != null && response.toolCalls!.isNotEmpty) {
-        return {
-          'need_tool_call': true,
-          'content': response.content ?? '',
-          'tool_calls': response.toolCalls!.map((tc) => {
-            'id': tc.id,
-            'name': tc.function.name,
-            'arguments': tc.function.arguments,
-          }).toList(),
-        };
+      // 获取标题并进行处理
+      String title = response.content?.trim() ?? "New Chat";
+      if (title.length > 50) {
+        title = title.substring(0, 50);
       }
-
-      return {
-        'need_tool_call': false,
-        'content': response.content ?? '',
-      };
-    } catch (e) {
-      _logger.severe('Error checking tool call: $e');
-      throw Exception('Failed to check tool call: $e');
+      return title;
+    } catch (e, trace) {
+      Logger.root.severe('Gemini gen title error: $e, trace: $trace');
+      return "New Chat";
     }
   }
 
   @override
   Future<List<String>> models() async {
     if (apiKey.isEmpty) {
-      throw Exception('API key is not set');
+      Logger.root.info('Gemini API key not set, skipping model list fetch');
+      return [];
     }
-    return [
-      'gemini-2.0-flash-001',
-      'gemini-2.0-flash',
-    ];
+
+    try {
+      final response = await http.get(
+        Uri.parse("$baseUrl/models?key=$apiKey"),
+        headers: _headers,
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('HTTP ${response.statusCode}: ${response.body}');
+      }
+
+      final data = jsonDecode(response.body);
+      final models = (data['models'] as List)
+          .map((m) => m['name'].toString().replaceAll('models/', ''))
+          .where((name) => name.startsWith('gemini-'))
+          .toList();
+
+      return models;
+    } catch (e, trace) {
+      Logger.root.severe('Failed to get model list: $e, trace: $trace');
+      return [];
+    }
   }
-} 
+}
+
+List<Map<String, dynamic>> chatMessageToGeminiMessage(
+    List<ChatMessage> messages) {
+  return messages.map((message) {
+    final parts = <Map<String, dynamic>>[];
+
+    // Add text content
+    if (message.content != null && message.content!.isNotEmpty) {
+      parts.add({
+        'text': message.content,
+      });
+    }
+
+    // Add file content
+    if (message.files != null) {
+      for (final file in message.files!) {
+        if (isImageFile(file.fileType)) {
+          parts.add({
+            'inlineData': {
+              'mimeType': file.fileType,
+              'data': file.fileContent,
+            },
+          });
+        }
+      }
+    }
+
+    // 确保至少有一个part
+    if (parts.isEmpty) {
+      parts.add({
+        'text': ' ', // 添加一个空格作为默认文本
+      });
+    }
+
+    return {
+      'role': message.role == MessageRole.user ? 'user' : 'model',
+      'parts': parts,
+    };
+  }).toList();
+}
+
+bool isImageFile(String mimeType) {
+  return mimeType.startsWith('image/');
+}

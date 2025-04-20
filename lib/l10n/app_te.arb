@@ -38,7 +38,7 @@
     "mcpServerDesktopOnly": "MCP సర్వర్ డెస్క్‌టాప్ ప్లాట్‌ఫారమ్‌లను (Windows, macOS, Linux) మాత్రమే సపోర్ట్ చేస్తుంది",
     "searchServer": "సర్వర్‌ని వెతకండి...",
     "noServerConfigs": "సర్వర్ కాన్ఫిగరేషన్లు కనుగొనబడలేదు",
-    "addServer": "సర్వర్‌ని జోడించండి",
+    "addProvider": "ప్రొవైడర్‌ని జోడించండి",
     "refresh": "రిఫ్రెష్",
     "install": "ఇన్‌స్టాల్",
     "edit": "ఎడిట్",

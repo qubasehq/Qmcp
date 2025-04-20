@@ -222,6 +222,7 @@ class _ModelSelectorPopupState extends State<ModelSelectorPopup> {
         providerId: '',
         icon: '',
         providerName: '',
+        apiStyle: '',
       ),
     );
 

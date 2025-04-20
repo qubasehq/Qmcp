@@ -125,7 +125,7 @@ class AppLocalizationsTe extends AppLocalizations {
   String get noServerConfigs => 'సర్వర్ కాన్ఫిగరేషన్లు కనుగొనబడలేదు';
 
   @override
-  String get addServer => 'సర్వర్‌ని జోడించండి';
+  String get addProvider => 'ప్రొవైడర్‌ని జోడించండి';
 
   @override
   String get refresh => 'రిఫ్రెష్';

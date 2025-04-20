@@ -125,7 +125,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get noServerConfigs => '未找到服务器配置';
 
   @override
-  String get addServer => '添加服务器';
+  String get addProvider => '添加提供商';
 
   @override
   String get refresh => '刷新';

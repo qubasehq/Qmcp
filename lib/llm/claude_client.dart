@@ -1,4 +1,4 @@
-import 'package:dio/dio.dart';
+import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'base_llm_client.dart';
 import 'model.dart';
@@ -9,23 +9,19 @@ import 'package:qubase_mcp/utils/file_content.dart';
 class ClaudeClient extends BaseLLMClient {
   final String apiKey;
   String baseUrl;
-  final Dio _dio;
+  final Map<String, String> _headers;
 
   ClaudeClient({
     required this.apiKey,
     String? baseUrl,
-    Dio? dio,
   })  : baseUrl = (baseUrl == null || baseUrl.isEmpty)
             ? 'https://api.anthropic.com/v1'
             : baseUrl,
-        _dio = dio ??
-            Dio(BaseOptions(
-              headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-              },
-            ));
+        _headers = {
+          'Content-Type': 'application/json',
+          'x-api-key': apiKey,
+          'anthropic-version': '2023-06-01',
+        };
 
   @override
   Future<LLMResponse> chatCompletion(CompletionRequest request) async {
@@ -55,20 +51,20 @@ class ClaudeClient extends BaseLLMClient {
     }
 
     try {
-      final response = await _dio.post(
-        '$baseUrl/messages',
-        data: jsonEncode(body),
+      final response = await http.post(
+        Uri.parse('$baseUrl/messages'),
+        headers: _headers,
+        body: jsonEncode(body),
       );
 
-      var json;
-      if (response.data is ResponseBody) {
-        final responseBody = response.data as ResponseBody;
-        final responseStr = await utf8.decodeStream(responseBody.stream);
-        json = jsonDecode(responseStr);
-      } else {
-        json = response.data;
+      final responseBody = utf8.decode(response.bodyBytes);
+      Logger.root.fine('Claude response: $responseBody');
+
+      if (response.statusCode >= 400) {
+        throw Exception('HTTP ${response.statusCode}: $responseBody');
       }
 
+      final json = jsonDecode(responseBody);
       final content = json['content'][0]['text'];
 
       // Parse tool calls if present
@@ -123,68 +119,85 @@ class ClaudeClient extends BaseLLMClient {
     }
 
     try {
-      _dio.options.responseType = ResponseType.stream;
-      final response = await _dio.post(
-        '$baseUrl/messages',
-        data: jsonEncode(body),
-      );
+      final request = http.Request('POST', Uri.parse('$baseUrl/messages'));
+      request.headers.addAll(_headers);
+      request.body = jsonEncode(body);
 
-      String buffer = '';
+      final response = await http.Client().send(request);
 
-      await for (final chunk in response.data.stream) {
-        final decodedChunk = utf8.decode(chunk);
-        buffer += decodedChunk;
+      if (response.statusCode >= 400) {
+        final responseBody = await response.stream.bytesToString();
+        Logger.root.fine('Claude response: $responseBody');
 
-        while (buffer.contains('\n')) {
-          final index = buffer.indexOf('\n');
-          final line = buffer.substring(0, index).trim();
-          buffer = buffer.substring(index + 1);
+        throw Exception('HTTP ${response.statusCode}: $responseBody');
+      }
+      final stream = response.stream
+          .transform(utf8.decoder)
+          .transform(const LineSplitter());
 
-          if (!line.startsWith('data:')) continue;
+      await for (final line in stream) {
+        if (!line.startsWith('data:')) continue;
 
-          final jsonStr = line.substring(5).trim();
-          if (jsonStr.isEmpty) continue;
+        final jsonStr = line.substring(5).trim();
+        if (jsonStr.isEmpty) continue;
 
-          try {
-            final event = jsonDecode(jsonStr);
-            final eventType = event['type'];
+        try {
+          final event = jsonDecode(jsonStr);
+          final eventType = event['type'];
 
-            switch (eventType) {
-              case 'content_block_start':
-                final content = event['content_block'];
-                final text = content['text'];
-                yield LLMResponse(content: text);
-              case 'content_block_delta':
-                final delta = event['delta'];
-                if (delta['type'] == 'text_delta') {
-                  yield LLMResponse(content: delta['text']);
-                } else if (delta['type'] == 'input_json_delta') {
-                  // Handle tool use delta
-                  // final partialJson = delta['partial_json'];
-                  // You may want to accumulate the JSON and parse it when complete
-                }
+          switch (eventType) {
+            case 'content_block_start':
+              if (event['content_block'] != null &&
+                  event['content_block']['text'] != null) {
+                yield LLMResponse(content: event['content_block']['text']);
+              } else {
+                Logger.root
+                    .warning('Invalid content_block_start event: $event');
+              }
+              break;
+            case 'content_block_delta':
+              final delta = event['delta'];
+              if (delta == null) {
+                Logger.root
+                    .warning('Invalid content_block_delta event: $event');
                 break;
+              }
 
-              case 'content_block_stop':
-                // Handle end of a content block
+              // 直接处理文本内容
+              if (delta['text'] != null) {
+                yield LLMResponse(content: delta['text']);
                 break;
+              }
 
-              case 'message_stop':
-                // Handle end of message
-                break;
+              // 处理特定类型的 delta
+              if (delta['type'] == 'text_delta' && delta['text'] != null) {
+                yield LLMResponse(content: delta['text']);
+              } else if (delta['type'] == 'input_json_delta') {
+                // Handle tool use delta
+                // final partialJson = delta['partial_json'];
+                // You may want to accumulate the JSON and parse it when complete
+              }
+              break;
 
-              case 'error':
-                final error = event['error'];
-                throw Exception('Stream error: ${error['message']}');
+            case 'content_block_stop':
+              // Handle end of a content block
+              break;
 
-              case 'ping':
-                // Ignore ping events
-                break;
-            }
-          } catch (e) {
-            Logger.root.warning('Failed to parse chunk: $jsonStr error: $e');
-            continue;
+            case 'message_stop':
+              // Handle end of message
+              break;
+
+            case 'error':
+              final error = event['error'];
+              throw Exception('Stream error: ${error['message']}');
+
+            case 'ping':
+              // Ignore ping events
+              break;
           }
+        } catch (e) {
+          Logger.root.warning('Failed to parse chunk: $jsonStr error: $e');
+          continue;
         }
       }
     } catch (e) {
@@ -268,19 +281,17 @@ $conversationText""",
     };
 
     try {
-      final response = await _dio.post(
-        '$baseUrl/messages',
-        data: jsonEncode(body),
+      final response = await http.post(
+        Uri.parse('$baseUrl/messages'),
+        headers: _headers,
+        body: jsonEncode(body),
       );
 
-      dynamic jsonData;
-      if (response.data is ResponseBody) {
-        final responseBody = response.data as ResponseBody;
-        final responseStr = await utf8.decodeStream(responseBody.stream);
-        jsonData = jsonDecode(responseStr);
-      } else {
-        jsonData = response.data;
+      if (response.statusCode != 200) {
+        throw Exception('HTTP ${response.statusCode}: ${response.body}');
       }
+
+      final jsonData = jsonDecode(response.body);
 
       // Check if response contains tool calls in the content array
       final contentBlocks = jsonData['content'] as List?;
@@ -341,10 +352,16 @@ $conversationText""",
     }
 
     try {
-      final response = await _dio.get("$baseUrl/models");
+      final response = await http.get(
+        Uri.parse('$baseUrl/models'),
+        headers: _headers,
+      );
 
-      final data = response.data;
+      if (response.statusCode != 200) {
+        throw Exception('HTTP ${response.statusCode}: ${response.body}');
+      }
 
+      final data = jsonDecode(response.body);
       final models = (data['data'] as List)
           .map((m) => m['id'].toString())
           .where((id) => id.contains('claude'))
@@ -353,7 +370,6 @@ $conversationText""",
       return models;
     } catch (e, trace) {
       Logger.root.severe('Failed to get model list: $e, trace: $trace');
-      // Return predefined model list as fallback
       return [];
     }
   }
@@ -408,4 +424,3 @@ List<Map<String, dynamic>> chatMessageToClaudeMessage(
     return json;
   }).toList();
 }
-

@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'dart:io' as io;
 import 'package:qubase_mcp/llm/model.dart';
@@ -11,7 +9,6 @@ import 'package:qubase_mcp/utils/platform.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:logging/logging.dart';
-import 'package:qubase_mcp/utils/color.dart';
 
 class ListViewToImageScreen extends StatefulWidget {
   final List<ChatMessage> messages;

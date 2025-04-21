@@ -37,7 +37,7 @@ class _ChatPageState extends State<ChatPage> {
   bool _isComposing = false; // Currently inputting
   BaseLLMClient? _llmClient;
   String _currentResponse = '';
-  bool _isLoading = false; // Currently loading
+  bool _isWaiting = false; // Is waiting for completion
   String _parentMessageId = ''; // Parent message ID
   bool _isCancelled = false; // Is cancelled
 
@@ -101,7 +101,7 @@ class _ChatPageState extends State<ChatPage> {
     //   await _showFunctionApprovalDialog(event);
     // }
 
-    if (!_isLoading) {
+    if (!_isWaiting) {
       _handleSubmitted(SubmitData("", []));
     }
   }
@@ -410,7 +410,7 @@ class _ChatPageState extends State<ChatPage> {
 
     return Expanded(
       child: MessageList(
-        messages: _isLoading
+        messages: _isWaiting
             ? [
                 ..._messages,
                 ChatMessage(content: '', role: MessageRole.loading)
@@ -507,7 +507,7 @@ class _ChatPageState extends State<ChatPage> {
     setState(() {
       _messages = previousMessages;
       _parentMessageId = userMessage.messageId;
-      _isLoading = true;
+      _isWaiting = true;
     });
 
     await _handleSubmitted(
@@ -659,13 +659,13 @@ class _ChatPageState extends State<ChatPage> {
     }
 
     setState(() {
-      _isLoading = false;
+      _isWaiting = false;
     });
   }
 
   void _addUserMessage(String text, List<File> files) {
     setState(() {
-      _isLoading = true;
+      _isWaiting = true;
       _isComposing = false;
       final msgId = Uuid().v4();
       _messages.add(
@@ -803,7 +803,14 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   Future<void> _processResponseStream(Stream<LLMResponse> stream) async {
+    bool isFirstChunk = true;
     await for (final chunk in stream) {
+      if (isFirstChunk) {
+        setState(() {
+          _isWaiting = false;
+        });
+        isFirstChunk = false;
+      }
       if (_isCancelled) break;
       setState(() {
         _currentResponse += chunk.content ?? '';
@@ -814,7 +821,6 @@ class _ChatPageState extends State<ChatPage> {
         );
       });
     }
-    _isCancelled = false;
   }
 
   Future<void> _updateChat() async {
@@ -880,7 +886,7 @@ class _ChatPageState extends State<ChatPage> {
       _runFunctionEvent = null;
       _userApproved = false;
       _userRejected = false;
-      _isLoading = false;
+      _isWaiting = false;
       _isCancelled = false;
     });
 
@@ -958,7 +964,7 @@ class _ChatPageState extends State<ChatPage> {
   void _handleCancel() {
     setState(() {
       _isComposing = false;
-      _isLoading = false;
+      _isWaiting = false;
       _isCancelled = true;
     });
   }
@@ -1046,7 +1052,7 @@ class _ChatPageState extends State<ChatPage> {
         children: [
           _buildMessageList(),
           InputArea(
-            disabled: _isLoading,
+            disabled: _isWaiting,
             isComposing: _isComposing,
             onTextChanged: _handleTextChanged,
             onSubmitted: _handleSubmitted,
@@ -1096,7 +1102,7 @@ class _ChatPageState extends State<ChatPage> {
                   ),
                 ),
               InputArea(
-                disabled: _isLoading,
+                disabled: _isWaiting,
                 isComposing: _isComposing,
                 onTextChanged: _handleTextChanged,
                 onSubmitted: _handleSubmitted,

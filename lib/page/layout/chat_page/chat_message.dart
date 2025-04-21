@@ -11,8 +11,9 @@ import 'dart:io' as io;
 import 'package:qubase_mcp/utils/color.dart';
 import 'chat_message_action.dart';
 import 'package:qubase_mcp/generated/app_localizations.dart';
+import 'chat_loading.dart';
 
-// 文件附件组件
+// File attachment component
 class FileAttachment extends StatelessWidget {
   final String path;
   final String name;
@@ -95,6 +96,11 @@ class FileAttachment extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  List<ChatMessage> _filterMessages(List<ChatMessage> messages) {
+    if (messages.length <= 1) return messages;
+    return messages.where((m) => m.content != '').toList();
   }
 }
 
@@ -282,11 +288,7 @@ class ChatMessageContent extends StatelessWidget {
     final messages = <Widget>[];
 
     if (message.role == MessageRole.loading) {
-      messages.add(MessageBubble(
-        message: ChatMessage(content: '', role: MessageRole.loading),
-        position: position,
-        useTransparentBackground: useTransparentBackground,
-      ));
+      messages.add(const ChatLoading());
     }
 
     if (message.files != null && message.files!.isNotEmpty) {

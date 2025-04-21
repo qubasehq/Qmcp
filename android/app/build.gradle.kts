@@ -11,8 +11,12 @@ plugins {
 // Load key.properties file
 val keystoreProperties = Properties()
 val keystorePropertiesFile = rootProject.file("key.properties")
+var useSigningConfig = false
 if (keystorePropertiesFile.exists()) {
     keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+    // Verify all required properties are present
+    useSigningConfig = listOf("keyAlias", "keyPassword", "storeFile", "storePassword")
+        .all { keystoreProperties[it] != null }
 }
 
 android {
@@ -60,17 +64,21 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
+        if (useSigningConfig) {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
         }
     }
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            if (useSigningConfig) {
+                signingConfig = signingConfigs.getByName("release")
+            }
             // Temporarily disable minification for testing
             isMinifyEnabled = false
             isShrinkResources = false

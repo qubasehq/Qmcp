@@ -89,11 +89,11 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "run.daodao" "\0"
+            VALUE "CompanyName", "Qubase" "\0"
             VALUE "FileDescription", "qubase_mcp" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "qubase_mcp" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2024 run.daodao. All rights reserved." "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2024 Qubase. All rights reserved." "\0"
             VALUE "OriginalFilename", "qubase_mcp.exe" "\0"
             VALUE "ProductName", "qubase_mcp" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"

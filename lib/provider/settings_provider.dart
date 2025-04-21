@@ -179,9 +179,6 @@ final List<KeysSetting> defaultApiSettings = [
     icon: 'ollama',
     custom: false,
   ),
-];
-
-final List<KeysSetting> defaultGeminiSettings = [
   KeysSetting(
     apiKey: '',
     apiEndpoint: 'https://generativelanguage.googleapis.com/v1beta',
@@ -191,9 +188,6 @@ final List<KeysSetting> defaultGeminiSettings = [
     icon: 'gemini',
     custom: false,
   ),
-];
-
-final List<KeysSetting> defaultOpenRouterSettings = [
   KeysSetting(
     apiKey: '',
     apiEndpoint: 'https://openrouter.ai/api/v1',
@@ -222,6 +216,10 @@ class SettingsProvider extends ChangeNotifier {
   ChatSetting _modelSetting = ChatSetting();
 
   List<KeysSetting> get apiSettings => _apiSettings;
+
+  KeysSetting getProviderSetting(String providerId) => _apiSettings.firstWhere(
+        (element) => element.providerId == providerId,
+      );
 
   GeneralSetting get generalSetting => _generalSetting;
 
@@ -278,22 +276,8 @@ class SettingsProvider extends ChangeNotifier {
             .toList();
       } catch (e) {
         Logger.root.severe('Error parsing $apiSettingsKey: $e');
-        // 发生错误时使用默认设置
         settings = [..._apiSettings];
       }
-    } else {
-      // 没有保存的设置，使用默认设置
-      settings = [..._apiSettings];
-    }
-
-    // default gemini settings is not in settings
-    if (!settings.any((element) => element.providerId == 'gemini')) {
-      settings = [...settings, ...defaultGeminiSettings];
-    }
-
-    // default openrouter settings is not in settings
-    if (!settings.any((element) => element.providerId == 'openrouter')) {
-      settings = [...settings, ...defaultOpenRouterSettings];
     }
 
     for (var setting in defaultApiSettings) {
